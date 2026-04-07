@@ -19,10 +19,12 @@ export type Database = {
           created_at: string
           email: string | null
           experience: string | null
+          file_name: string | null
           id: string
           name: string
           resume_url: string | null
           score: number | null
+          score_breakdown: Json | null
           skills: string[] | null
           status: string
           summary: string | null
@@ -33,10 +35,12 @@ export type Database = {
           created_at?: string
           email?: string | null
           experience?: string | null
+          file_name?: string | null
           id?: string
           name: string
           resume_url?: string | null
           score?: number | null
+          score_breakdown?: Json | null
           skills?: string[] | null
           status?: string
           summary?: string | null
@@ -47,10 +51,12 @@ export type Database = {
           created_at?: string
           email?: string | null
           experience?: string | null
+          file_name?: string | null
           id?: string
           name?: string
           resume_url?: string | null
           score?: number | null
+          score_breakdown?: Json | null
           skills?: string[] | null
           status?: string
           summary?: string | null

@@ -1,29 +1,20 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import ThemeToggle from "@/components/ThemeToggle";
-import Logo from "@/components/Logo";
-import { useAuth } from "@/hooks/useAuth";
+import GlobalHeader from "@/components/GlobalHeader";
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
-
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        <div className="flex-1 flex flex-col">
-          <header className="h-14 flex items-center justify-between border-b px-4">
-            <div className="flex items-center gap-2">
+      <div className="min-h-screen flex flex-col w-full">
+        <GlobalHeader />
+        <div className="flex flex-1">
+          <AppSidebar />
+          <div className="flex-1 flex flex-col">
+            <div className="flex items-center h-10 px-4 border-b md:hidden">
               <SidebarTrigger />
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                {user?.email}
-              </span>
-              <ThemeToggle />
-            </div>
-          </header>
-          <main className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>
+            <main className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>
+          </div>
         </div>
       </div>
     </SidebarProvider>

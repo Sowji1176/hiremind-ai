@@ -2,18 +2,39 @@ import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
-import { Upload, FileText, Loader2, CheckCircle } from "lucide-react";
+import { Upload, Loader2, CheckCircle, FileText } from "lucide-react";
 
 const ACCEPTED = ".pdf,.doc,.docx";
 
+interface ScoreBreakdown {
+  keyword_match: number;
+  experience: number;
+  skills: number;
+  education: number;
+  format: number;
+  impact: number;
+}
+
 interface AnalysisResult {
   name: string;
+  file_name: string;
   skills: string[];
   experience: string;
   score: number;
+  score_breakdown: ScoreBreakdown;
   summary: string;
 }
+
+const breakdownLabels: { key: keyof ScoreBreakdown; label: string; max: number }[] = [
+  { key: "keyword_match", label: "Keyword Match", max: 30 },
+  { key: "experience", label: "Experience Quality", max: 25 },
+  { key: "skills", label: "Skills Relevance", max: 20 },
+  { key: "education", label: "Education", max: 10 },
+  { key: "format", label: "Resume Format", max: 10 },
+  { key: "impact", label: "Action & Impact", max: 5 },
+];
 
 const UploadResume = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -44,13 +65,11 @@ const UploadResume = () => {
     setResult(null);
 
     try {
-      // Upload file to storage
       const ext = file.name.split(".").pop();
       const path = `${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("resumes").upload(path, file);
       if (uploadError) throw uploadError;
 
-      // Call edge function
       const { data, error } = await supabase.functions.invoke("analyze-resume", {
         body: { filePath: path, fileName: file.name },
       });
@@ -101,17 +120,45 @@ const UploadResume = () => {
               <CheckCircle className="h-5 w-5 text-green-500" /> Analysis Results
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Name</p>
                 <p className="font-medium text-foreground">{result.name}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Score</p>
+                <p className="text-sm text-muted-foreground">ATS Score</p>
                 <p className="font-bold text-2xl text-accent">{result.score}/100</p>
               </div>
             </div>
+
+            <div>
+              <p className="text-sm text-muted-foreground flex items-center gap-1 mb-1">
+                <FileText className="h-3 w-3" /> File Name
+              </p>
+              <p className="text-sm text-foreground">{result.file_name}</p>
+            </div>
+
+            {/* Score Breakdown */}
+            <div>
+              <p className="text-sm font-medium text-foreground mb-3">Score Breakdown</p>
+              <div className="space-y-3">
+                {breakdownLabels.map(({ key, label, max }) => {
+                  const val = result.score_breakdown?.[key] ?? 0;
+                  const pct = (val / max) * 100;
+                  return (
+                    <div key={key}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">{label}</span>
+                        <span className="font-medium text-foreground">{val}/{max}</span>
+                      </div>
+                      <Progress value={pct} className="h-2" />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <p className="text-sm text-muted-foreground mb-1">Skills</p>
               <div className="flex flex-wrap gap-2">

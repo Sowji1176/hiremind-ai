@@ -172,8 +172,9 @@ Before returning your output, verify each item:
                 properties: {
                   name: { type: "string", description: "Full name of the candidate extracted from the resume. If not found, use the fallback name." },
                   email: { type: "string", description: "Email address if found, empty string if not" },
-                  skills: { type: "array", items: { type: "string" }, description: "List of technical and soft skills" },
-                  experience: { type: "string", description: "Brief summary of work experience (2-3 sentences). Internships count as experience." },
+                  skills: { type: "array", items: { type: "string" }, description: "ONLY explicitly listed skills. If none found, return ['NA']." },
+                  experience: { type: "string", description: "ALL experience entries separated by ' | '. Include every job, internship, simulation, freelance. Use exact role titles and company names. If none found, return 'NA'." },
+                  education: { type: "string", description: "Exact degree/qualification as written in resume. If not found, return 'NA'. DO NOT assume any degree." },
                   total_score: { type: "integer", description: "Overall ATS score 0-100, sum of all category scores" },
                   keyword_match: { type: "integer", description: "Keyword match score 0-30" },
                   experience_score: { type: "integer", description: "Experience quality score 0-25" },

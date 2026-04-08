@@ -136,8 +136,18 @@ SUMMARY:
 - Must be 100% factual, based ONLY on resume content.
 - DO NOT assume job functions, capabilities, or interests not stated.
 
-EDUCATION:
-- Extract exactly as written. If not found → "NA"
+EDUCATION (CRITICAL):
+- Extract ONLY the degree/qualification explicitly written in the resume.
+- DO NOT assume or generate any degree (B.Tech, B.Sc, MBA, etc.) unless it is explicitly stated.
+- If no education section or degree is found → return "NA".
+- Preserve exact wording (e.g. "Bachelor of Technology in Computer Science" → use exactly that).
+
+MULTIPLE EXPERIENCES (CRITICAL):
+- Extract EVERY experience entry found in the resume — not just the first one.
+- Include ALL: full-time jobs, internships, job simulations, virtual experience programs, part-time, freelance.
+- List each as a separate entry in the experience string, separated by " | ".
+- Example: "Data Analyst Simulation – Deloitte | Data Entry Clerk – XYZ Company | Intern – ABC Pvt Ltd"
+- If 4 experiences exist, list all 4. Never truncate or merge.
 
 VERIFICATION STEP (MANDATORY):
 Before returning your output, verify each item:

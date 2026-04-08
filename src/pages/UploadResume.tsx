@@ -169,6 +169,10 @@ const UploadResume = () => {
               </div>
             </div>
             <div>
+              <p className="text-sm text-muted-foreground mb-1">Education</p>
+              <p className="text-sm text-foreground">{result.education || "NA"}</p>
+            </div>
+            <div>
               <p className="text-sm text-muted-foreground mb-1">Experience</p>
               <p className="text-sm text-foreground">{result.experience}</p>
             </div>

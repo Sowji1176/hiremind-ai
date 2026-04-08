@@ -22,6 +22,7 @@ interface AnalysisResult {
   file_name: string;
   skills: string[];
   experience: string;
+  education: string;
   score: number;
   score_breakdown: ScoreBreakdown;
   summary: string;
@@ -166,6 +167,10 @@ const UploadResume = () => {
                   <span key={s} className="px-2 py-1 bg-secondary text-secondary-foreground rounded-full text-xs">{s}</span>
                 ))}
               </div>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Education</p>
+              <p className="text-sm text-foreground">{result.education || "NA"}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-1">Experience</p>

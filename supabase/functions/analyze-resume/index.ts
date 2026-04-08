@@ -136,8 +136,18 @@ SUMMARY:
 - Must be 100% factual, based ONLY on resume content.
 - DO NOT assume job functions, capabilities, or interests not stated.
 
-EDUCATION:
-- Extract exactly as written. If not found → "NA"
+EDUCATION (CRITICAL):
+- Extract ONLY the degree/qualification explicitly written in the resume.
+- DO NOT assume or generate any degree (B.Tech, B.Sc, MBA, etc.) unless it is explicitly stated.
+- If no education section or degree is found → return "NA".
+- Preserve exact wording (e.g. "Bachelor of Technology in Computer Science" → use exactly that).
+
+MULTIPLE EXPERIENCES (CRITICAL):
+- Extract EVERY experience entry found in the resume — not just the first one.
+- Include ALL: full-time jobs, internships, job simulations, virtual experience programs, part-time, freelance.
+- List each as a separate entry in the experience string, separated by " | ".
+- Example: "Data Analyst Simulation – Deloitte | Data Entry Clerk – XYZ Company | Intern – ABC Pvt Ltd"
+- If 4 experiences exist, list all 4. Never truncate or merge.
 
 VERIFICATION STEP (MANDATORY):
 Before returning your output, verify each item:
@@ -162,8 +172,9 @@ Before returning your output, verify each item:
                 properties: {
                   name: { type: "string", description: "Full name of the candidate extracted from the resume. If not found, use the fallback name." },
                   email: { type: "string", description: "Email address if found, empty string if not" },
-                  skills: { type: "array", items: { type: "string" }, description: "List of technical and soft skills" },
-                  experience: { type: "string", description: "Brief summary of work experience (2-3 sentences). Internships count as experience." },
+                  skills: { type: "array", items: { type: "string" }, description: "ONLY explicitly listed skills. If none found, return ['NA']." },
+                  experience: { type: "string", description: "ALL experience entries separated by ' | '. Include every job, internship, simulation, freelance. Use exact role titles and company names. If none found, return 'NA'." },
+                  education: { type: "string", description: "Exact degree/qualification as written in resume. If not found, return 'NA'. DO NOT assume any degree." },
                   total_score: { type: "integer", description: "Overall ATS score 0-100, sum of all category scores" },
                   keyword_match: { type: "integer", description: "Keyword match score 0-30" },
                   experience_score: { type: "integer", description: "Experience quality score 0-25" },
@@ -171,9 +182,9 @@ Before returning your output, verify each item:
                   education_score: { type: "integer", description: "Education score 0-10" },
                   format_score: { type: "integer", description: "Resume format & structure score 0-10" },
                   impact_score: { type: "integer", description: "Action words & impact score 0-5" },
-                  summary: { type: "string", description: "2-3 sentence professional summary with scoring justification" },
+                  summary: { type: "string", description: "2-3 sentence factual summary based ONLY on resume content. No assumptions." },
                 },
-                required: ["name", "skills", "experience", "total_score", "keyword_match", "experience_score", "skills_score", "education_score", "format_score", "impact_score", "summary"],
+                required: ["name", "skills", "experience", "education", "total_score", "keyword_match", "experience_score", "skills_score", "education_score", "format_score", "impact_score", "summary"],
                 additionalProperties: false,
               },
             },
@@ -249,6 +260,7 @@ Before returning your output, verify each item:
       email: parsed.email || "",
       skills: parsed.skills || [],
       experience: parsed.experience || "",
+      education: parsed.education || "NA",
       score: totalScore,
       score_breakdown: scoreBreakdown,
       file_name: fileName,

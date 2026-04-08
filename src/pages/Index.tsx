@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 import GlobalHeader from "@/components/GlobalHeader";
-import { Brain, FileText, Users, BarChart3, CheckCircle, ArrowRight } from "lucide-react";
+import { Brain, FileText, Users, BarChart3, ArrowRight } from "lucide-react";
 
 const features = [
   { icon: Brain, title: "AI-Powered Analysis", desc: "AI-powered resume parsing extracts skills, experience, and generates match scores automatically." },

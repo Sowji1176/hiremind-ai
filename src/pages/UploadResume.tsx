@@ -22,6 +22,7 @@ interface AnalysisResult {
   file_name: string;
   skills: string[];
   experience: string;
+  education: string;
   score: number;
   score_breakdown: ScoreBreakdown;
   summary: string;

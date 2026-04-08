@@ -260,6 +260,7 @@ Before returning your output, verify each item:
       email: parsed.email || "",
       skills: parsed.skills || [],
       experience: parsed.experience || "",
+      education: parsed.education || "NA",
       score: totalScore,
       score_breakdown: scoreBreakdown,
       file_name: fileName,

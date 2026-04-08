@@ -107,7 +107,7 @@ SCORING RULES (STRICT):
 - Resume Format (0-10): Clear sections, structure, formatting quality
 - Action & Impact (0-5): Strong action verbs, measurable achievements
 
-IMPORTANT:
+SCORING GUIDELINES:
 - Internships are VALID experience. Never give 0 for experience if internships exist
 - Fresher with internship: total score 50-70
 - Experienced professional: 70-90
@@ -115,13 +115,36 @@ IMPORTANT:
 - DO NOT give random or fixed scores. Base everything on actual resume content
 - Always try to extract the candidate's real name from the resume text. If not found, use "${fallbackName}" as the name.
 
-CRITICAL DATA ACCURACY RULES:
-- Extract ONLY real company names that are explicitly mentioned in the resume text.
-- DO NOT invent, assume, or hallucinate any company names, internship details, or experience.
-- If no company names or experience are found in the resume, set experience to "NA".
-- The summary must be based ONLY on what is actually written in the resume. No assumptions.
-- For skills, extract ONLY skills explicitly listed or clearly demonstrated in the resume.
-- If education details are not found, state "NA" instead of guessing.`,
+=== CRITICAL ANTI-HALLUCINATION RULES ===
+
+ABSOLUTE RULE: You are FORBIDDEN from generating, inventing, or inferring ANY data not explicitly written in the resume text.
+
+SKILLS:
+- Extract ONLY skills that are explicitly written in the resume (e.g. listed in a "Skills" section or clearly mentioned).
+- DO NOT infer skills from job titles or context. If "Data Analyst" is a title, do NOT add "Data Analysis" as a skill unless separately listed.
+- If no skills section or explicit skills found → return ["NA"]
+
+EXPERIENCE:
+- Extract ALL types: full-time jobs, internships, job simulations, virtual experience programs, part-time, freelance.
+- Preserve the EXACT role title and company name as written in the resume.
+- Example: "Data Analyst Simulation – Deloitte" → use exactly that text.
+- DO NOT rename roles. DO NOT change company names.
+- DO NOT invent companies like "Internshala", "Google", "Microsoft" unless they are explicitly written.
+- If no experience found → return "NA"
+
+SUMMARY:
+- Must be 100% factual, based ONLY on resume content.
+- DO NOT assume job functions, capabilities, or interests not stated.
+
+EDUCATION:
+- Extract exactly as written. If not found → "NA"
+
+VERIFICATION STEP (MANDATORY):
+Before returning your output, verify each item:
+- Is every skill explicitly written in the resume? If not → REMOVE IT.
+- Is every company name explicitly in the resume? If not → REMOVE IT.
+- Is every role title exactly as written? If not → CORRECT IT.
+- Is the summary based only on resume facts? If not → REWRITE IT.`,
           },
           {
             role: "user",

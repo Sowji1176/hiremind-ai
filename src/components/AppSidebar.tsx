@@ -1,5 +1,7 @@
-import { LayoutDashboard, Upload, Users } from "lucide-react";
+import { LayoutDashboard, Upload, Users, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Sidebar,
   SidebarContent,
@@ -8,6 +10,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -20,6 +23,13 @@ const navItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    signOut();
+    navigate("/", { replace: true });
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -46,6 +56,16 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={handleLogout} className="hover:bg-destructive/10 hover:text-destructive">
+              <LogOut className="mr-2 h-4 w-4" />
+              {!collapsed && <span>Logout</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }

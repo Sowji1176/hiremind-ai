@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -25,10 +26,13 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(() => {
+    // Clear state immediately for instant UI response
+    setUser(null);
+    setSession(null);
+    // Fire-and-forget backend cleanup
     supabase.auth.signOut();
-    window.location.href = "/";
-  };
+  }, []);
 
   return { user, session, loading, signOut };
 }

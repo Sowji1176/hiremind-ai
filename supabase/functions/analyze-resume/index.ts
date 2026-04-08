@@ -112,7 +112,15 @@ IMPORTANT:
 - Experienced professional: 70-90
 - Poor profile (no skills, no experience): 20-40
 - DO NOT give random or fixed scores. Base everything on actual resume content
-- Always try to extract the candidate's real name from the resume text. If not found, use "${fallbackName}" as the name.`,
+- Always try to extract the candidate's real name from the resume text. If not found, use "${fallbackName}" as the name.
+
+CRITICAL DATA ACCURACY RULES:
+- Extract ONLY real company names that are explicitly mentioned in the resume text.
+- DO NOT invent, assume, or hallucinate any company names, internship details, or experience.
+- If no company names or experience are found in the resume, set experience to "NA".
+- The summary must be based ONLY on what is actually written in the resume. No assumptions.
+- For skills, extract ONLY skills explicitly listed or clearly demonstrated in the resume.
+- If education details are not found, state "NA" instead of guessing.`,
           },
           {
             role: "user",

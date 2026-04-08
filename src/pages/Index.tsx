@@ -17,11 +17,6 @@ const steps = [
   { num: "3", title: "Review & Decide", desc: "Shortlist or reject with one click" },
 ];
 
-const pricing = [
-  { name: "Starter", price: "Free", features: ["5 resumes/month", "Basic AI scoring", "CSV export"], cta: "Get Started" },
-  { name: "Pro", price: "$29/mo", features: ["Unlimited resumes", "Advanced AI analysis", "Priority support", "Team collaboration"], cta: "Start Free Trial", popular: true },
-  { name: "Enterprise", price: "Custom", features: ["Custom integrations", "Dedicated support", "SLA guarantee", "SSO"], cta: "Contact Sales" },
-];
 
 const Landing = () => (
   <div className="min-h-screen bg-background">
@@ -75,27 +70,6 @@ const Landing = () => (
       </div>
     </section>
 
-    {/* Pricing */}
-    <section className="container mx-auto px-4 py-20">
-      <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Pricing</h2>
-      <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-        {pricing.map((p) => (
-          <div key={p.name} className={`rounded-lg border bg-card p-6 text-card-foreground shadow-sm flex flex-col ${p.popular ? "ring-2 ring-accent relative" : ""}`}>
-            {p.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full">Most Popular</span>}
-            <h3 className="font-semibold text-lg mb-1">{p.name}</h3>
-            <p className="text-3xl font-bold mb-4 text-foreground">{p.price}</p>
-            <ul className="space-y-2 mb-6 flex-1">
-              {p.features.map((f) => (
-                <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle className="h-4 w-4 text-accent flex-shrink-0" /> {f}
-                </li>
-              ))}
-            </ul>
-            <Link to="/register"><Button className="w-full" variant={p.popular ? "default" : "outline"}>{p.cta}</Button></Link>
-          </div>
-        ))}
-      </div>
-    </section>
 
     {/* Footer */}
     <footer className="border-t py-8">

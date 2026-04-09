@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { extractText } from "https://esm.sh/unpdf";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,11 +14,29 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
+async function extractPdfContent(fileData: Blob): Promise<string> {
+  const buffer = await fileData.arrayBuffer();
+  if (buffer.byteLength > 15 * 1024 * 1024) {
+    throw new Error(`PDF too large: ${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB`);
+  }
+  const { text } = await extractText(new Uint8Array(buffer), { mergePages: true });
+  return text.slice(0, 40000);
+}
+
+function extractDocxText(fileData: Blob): Promise<string> {
+  return fileData.arrayBuffer().then(buf => {
+    const raw = new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(buf));
+    const matches = raw.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
+    if (matches) return matches.map(m => m.replace(/<[^>]+>/g, "")).join(" ").slice(0, 40000);
+    const readable = raw.match(/[\x20-\x7E\n\r\t]{10,}/g);
+    return readable ? readable.join(" ").slice(0, 40000) : raw.substring(0, 5000);
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return jsonResponse({ error: "Unauthorized" }, 401);
 
@@ -29,7 +48,6 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
     if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
 
-    // Input
     const { filePath, fileName } = await req.json();
     if (!filePath || !fileName) return jsonResponse({ error: "filePath and fileName are required" }, 400);
 
@@ -37,12 +55,19 @@ serve(async (req) => {
     const { data: fileData, error: downloadError } = await supabase.storage.from("resumes").download(filePath);
     if (downloadError || !fileData) return jsonResponse({ error: "Failed to download file" }, 400);
 
-    // Convert file to base64 for Gemini native document understanding
-    const arrayBuffer = await fileData.arrayBuffer();
-    const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    
+    // Extract text using proper parsing
     const isPdf = fileName.toLowerCase().endsWith(".pdf");
-    const mimeType = isPdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    let textContent: string;
+    try {
+      textContent = isPdf ? await extractPdfContent(fileData) : await extractDocxText(fileData);
+    } catch (extractErr) {
+      console.error("Text extraction error:", extractErr);
+      return jsonResponse({ error: "Failed to extract text from file" }, 400);
+    }
+
+    if (!textContent || textContent.trim().length < 20) {
+      return jsonResponse({ error: "Could not extract readable text from the uploaded file" }, 400);
+    }
 
     // Fallback name from filename
     const fallbackName = fileName
@@ -83,33 +108,30 @@ ABSOLUTE RULE: You are FORBIDDEN from generating, inventing, or inferring ANY da
 
 SKILLS:
 - Extract ONLY skills that are explicitly written in the resume (e.g. listed in a "Skills" section or clearly mentioned).
-- DO NOT infer skills from job titles or context. If "Data Analyst" is a title, do NOT add "Data Analysis" as a skill unless separately listed.
+- DO NOT infer skills from job titles or context.
 - If no skills section or explicit skills found → return ["NA"]
 
 EXPERIENCE:
 - Extract ALL types: full-time jobs, internships, job simulations, virtual experience programs, part-time, freelance.
 - Preserve the EXACT role title and company name as written in the resume.
-- Example: "Data Analyst Simulation – Deloitte" → use exactly that text.
 - DO NOT rename roles. DO NOT change company names.
 - DO NOT invent companies unless they are explicitly written.
 - If no experience found → return "NA"
-
-SUMMARY:
-- Must be 100% factual, based ONLY on resume content.
-- DO NOT assume job functions, capabilities, or interests not stated.
 
 EDUCATION (CRITICAL):
 - Extract ONLY the degree/qualification explicitly written in the resume.
 - DO NOT assume or generate any degree (B.Tech, B.Sc, MBA, etc.) unless it is explicitly stated.
 - If no education section or degree is found → return "NA".
-- Preserve exact wording (e.g. "Bachelor of Technology in Computer Science" → use exactly that).
+- Preserve exact wording.
 
 MULTIPLE EXPERIENCES (CRITICAL):
 - Extract EVERY experience entry found in the resume — not just the first one.
-- Include ALL: full-time jobs, internships, job simulations, virtual experience programs, part-time, freelance.
-- List each as a separate entry in the experience string, separated by " | ".
-- Example: "Data Analyst Simulation – Deloitte | Data Entry Clerk – XYZ Company | Intern – ABC Pvt Ltd"
+- List each as a separate entry separated by " | ".
 - If 4 experiences exist, list all 4. Never truncate or merge.
+
+SUMMARY:
+- Must be 100% factual, based ONLY on resume content.
+- DO NOT assume job functions, capabilities, or interests not stated.
 
 VERIFICATION STEP (MANDATORY):
 Before returning your output, verify each item:
@@ -129,23 +151,7 @@ Before returning your output, verify each item:
         temperature: 0,
         messages: [
           { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              {
-                type: "file",
-                file: {
-                  filename: fileName,
-                  content_type: mimeType,
-                  data: base64Data,
-                },
-              },
-              {
-                type: "text",
-                text: "Analyze this resume document and provide a detailed ATS score breakdown. Extract ONLY explicitly stated information.",
-              },
-            ],
-          },
+          { role: "user", content: `Analyze this resume and provide a detailed ATS score breakdown:\n\n${textContent}` },
         ],
         tools: [
           {
@@ -159,7 +165,7 @@ Before returning your output, verify each item:
                   name: { type: "string", description: "Full name of the candidate extracted from the resume. If not found, use the fallback name." },
                   email: { type: "string", description: "Email address if found, empty string if not" },
                   skills: { type: "array", items: { type: "string" }, description: "ONLY explicitly listed skills. If none found, return ['NA']." },
-                  experience: { type: "string", description: "ALL experience entries separated by ' | '. Include every job, internship, simulation, freelance. Use exact role titles and company names. If none found, return 'NA'." },
+                  experience: { type: "string", description: "ALL experience entries separated by ' | '. Use exact role titles and company names. If none found, return 'NA'." },
                   education: { type: "string", description: "Exact degree/qualification as written in resume. If not found, return 'NA'. DO NOT assume any degree." },
                   total_score: { type: "integer", description: "Overall ATS score 0-100, sum of all category scores" },
                   keyword_match: { type: "integer", description: "Keyword match score 0-30" },

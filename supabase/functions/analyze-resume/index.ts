@@ -55,18 +55,32 @@ serve(async (req) => {
     const { data: fileData, error: downloadError } = await supabase.storage.from("resumes").download(filePath);
     if (downloadError || !fileData) return jsonResponse({ error: "Failed to download file" }, 400);
 
-    // Extract text using proper parsing
-    const isPdf = fileName.toLowerCase().endsWith(".pdf");
-    let textContent: string;
-    try {
-      textContent = isPdf ? await extractPdfContent(fileData) : await extractDocxText(fileData);
-    } catch (extractErr) {
-      console.error("Text extraction error:", extractErr);
-      return jsonResponse({ error: "Failed to extract text from file" }, 400);
-    }
+    // Detect file type and extract text
+    const lowerName = fileName.toLowerCase();
+    const isPdf = lowerName.endsWith(".pdf");
+    const isImage = /\.(jpg|jpeg|png)$/.test(lowerName);
+    const isDocx = /\.(doc|docx)$/.test(lowerName);
 
-    if (!textContent || textContent.trim().length < 20) {
-      return jsonResponse({ error: "Could not extract readable text from the uploaded file" }, 400);
+    let textContent: string | null = null;
+    let imageBase64: string | null = null;
+    let imageMimeType: string | null = null;
+
+    if (isImage) {
+      // For images, encode as base64 and use Gemini vision for OCR
+      const buffer = await fileData.arrayBuffer();
+      imageBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      imageMimeType = lowerName.endsWith(".png") ? "image/png" : "image/jpeg";
+    } else {
+      try {
+        textContent = isPdf ? await extractPdfContent(fileData) : await extractDocxText(fileData);
+      } catch (extractErr) {
+        console.error("Text extraction error:", extractErr);
+        return jsonResponse({ error: "Failed to extract text from file" }, 400);
+      }
+
+      if (!textContent || textContent.trim().length < 20) {
+        return jsonResponse({ error: "Could not extract readable text from the uploaded file" }, 400);
+      }
     }
 
     // Fallback name from filename

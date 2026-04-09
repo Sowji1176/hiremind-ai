@@ -6,10 +6,10 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="min-h-screen flex flex-col w-full">
       <GlobalHeader />
-      <SidebarProvider>
-        <div className="flex flex-1 overflow-hidden w-full">
+      <SidebarProvider defaultOpen={true}>
+        <div className="flex flex-1 w-full" style={{ minHeight: "calc(100vh - 64px)" }}>
           <AppSidebar />
-          <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 flex flex-col min-w-0">
             <div className="flex items-center h-10 px-4 border-b md:hidden">
               <SidebarTrigger />
             </div>

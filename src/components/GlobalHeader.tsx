@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { LogOut } from "lucide-react";
 
 const GlobalHeader = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   return (
     <nav className="border-b sticky top-0 bg-background/95 backdrop-blur z-50">
@@ -20,14 +20,7 @@ const GlobalHeader = () => {
         </Link>
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          {user ? (
-            <>
-              <span className="text-sm text-muted-foreground hidden sm:inline">{user.email}</span>
-              <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
-                <LogOut className="h-4 w-4" /> Logout
-              </Button>
-            </>
-          ) : (
+          {!user && (
             <>
               <Link to="/login">
                 <Button variant="ghost">Login</Button>

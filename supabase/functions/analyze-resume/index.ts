@@ -165,7 +165,15 @@ Before returning your output, verify each item:
         temperature: 0,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Analyze this resume and provide a detailed ATS score breakdown:\n\n${textContent}` },
+          imageBase64
+            ? {
+                role: "user",
+                content: [
+                  { type: "text", text: "This is an image of a resume. Extract ALL text using OCR, then analyze it and provide a detailed ATS score breakdown." },
+                  { type: "image_url", image_url: { url: `data:${imageMimeType};base64,${imageBase64}` } },
+                ],
+              }
+            : { role: "user", content: `Analyze this resume and provide a detailed ATS score breakdown:\n\n${textContent}` },
         ],
         tools: [
           {

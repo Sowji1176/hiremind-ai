@@ -6,67 +6,45 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Auth
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!authHeader) return jsonResponse({ error: "Unauthorized" }, 401);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (authError || !user) return jsonResponse({ error: "Unauthorized" }, 401);
 
+    // Input
     const { filePath, fileName } = await req.json();
-    if (!filePath || !fileName) {
-      return new Response(JSON.stringify({ error: "filePath and fileName are required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!filePath || !fileName) return jsonResponse({ error: "filePath and fileName are required" }, 400);
 
-    // Download file from storage
+    // Download file
     const { data: fileData, error: downloadError } = await supabase.storage.from("resumes").download(filePath);
-    if (downloadError || !fileData) {
-      return new Response(JSON.stringify({ error: "Failed to download file" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (downloadError || !fileData) return jsonResponse({ error: "Failed to download file" }, 400);
 
-    // Extract text from file
+    // Convert file to base64 for Gemini native document understanding
     const arrayBuffer = await fileData.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    const rawText = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-    let textContent = "";
+    const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    
+    const isPdf = fileName.toLowerCase().endsWith(".pdf");
+    const mimeType = isPdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-    if (fileName.toLowerCase().endsWith(".pdf")) {
-      const matches = rawText.match(/[\x20-\x7E\n\r\t]{20,}/g);
-      textContent = matches ? matches.join(" ") : rawText.substring(0, 5000);
-    } else {
-      const matches = rawText.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
-      if (matches) {
-        textContent = matches.map(m => m.replace(/<[^>]+>/g, "")).join(" ");
-      } else {
-        const readable = rawText.match(/[\x20-\x7E\n\r\t]{10,}/g);
-        textContent = readable ? readable.join(" ") : rawText.substring(0, 5000);
-      }
-    }
-
-    textContent = textContent.substring(0, 8000);
-
-    // Derive fallback name from filename
+    // Fallback name from filename
     const fallbackName = fileName
       .replace(/\.[^.]+$/, "")
       .replace(/[_-]/g, " ")
@@ -78,25 +56,9 @@ serve(async (req) => {
       .trim() || "Candidate";
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI service not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!LOVABLE_API_KEY) return jsonResponse({ error: "AI service not configured" }, 500);
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        temperature: 0,
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert HR resume analyzer and ATS scoring engine. Extract structured information and provide a detailed, realistic ATS score breakdown.
+    const systemPrompt = `You are an expert HR resume analyzer and ATS scoring engine. Extract structured information and provide a detailed, realistic ATS score breakdown.
 
 SCORING RULES (STRICT):
 - Total score: 0-100, calculated from 6 categories
@@ -129,7 +91,7 @@ EXPERIENCE:
 - Preserve the EXACT role title and company name as written in the resume.
 - Example: "Data Analyst Simulation – Deloitte" → use exactly that text.
 - DO NOT rename roles. DO NOT change company names.
-- DO NOT invent companies like "Internshala", "Google", "Microsoft" unless they are explicitly written.
+- DO NOT invent companies unless they are explicitly written.
 - If no experience found → return "NA"
 
 SUMMARY:
@@ -154,11 +116,35 @@ Before returning your output, verify each item:
 - Is every skill explicitly written in the resume? If not → REMOVE IT.
 - Is every company name explicitly in the resume? If not → REMOVE IT.
 - Is every role title exactly as written? If not → CORRECT IT.
-- Is the summary based only on resume facts? If not → REWRITE IT.`,
-          },
+- Is the summary based only on resume facts? If not → REWRITE IT.`;
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        temperature: 0,
+        messages: [
+          { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: `Analyze this resume and provide a detailed ATS score breakdown:\n\n${textContent}`,
+            content: [
+              {
+                type: "file",
+                file: {
+                  filename: fileName,
+                  content_type: mimeType,
+                  data: base64Data,
+                },
+              },
+              {
+                type: "text",
+                text: "Analyze this resume document and provide a detailed ATS score breakdown. Extract ONLY explicitly stated information.",
+              },
+            ],
           },
         ],
         tools: [
@@ -197,28 +183,14 @@ Before returning your output, verify each item:
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error("AI error:", aiResponse.status, errText);
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "AI rate limit exceeded. Please try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ error: "AI analysis failed" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (aiResponse.status === 429) return jsonResponse({ error: "AI rate limit exceeded. Please try again later." }, 429);
+      if (aiResponse.status === 402) return jsonResponse({ error: "AI credits exhausted. Please add funds." }, 402);
+      return jsonResponse({ error: "AI analysis failed" }, 500);
     }
 
     const aiResult = await aiResponse.json();
     const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      return new Response(JSON.stringify({ error: "AI did not return structured data" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!toolCall) return jsonResponse({ error: "AI did not return structured data" }, 500);
 
     const parsed = JSON.parse(toolCall.function.arguments);
     const candidateName = parsed.name && parsed.name !== "Unknown" ? parsed.name : fallbackName;
@@ -250,12 +222,10 @@ Before returning your output, verify each item:
 
     if (insertError) {
       console.error("Insert error:", insertError);
-      return new Response(JSON.stringify({ error: "Failed to save candidate" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Failed to save candidate" }, 500);
     }
 
-    return new Response(JSON.stringify({
+    return jsonResponse({
       name: candidateName,
       email: parsed.email || "",
       skills: parsed.skills || [],
@@ -265,13 +235,9 @@ Before returning your output, verify each item:
       score_breakdown: scoreBreakdown,
       file_name: fileName,
       summary: parsed.summary || "",
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("Error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
   }
 });

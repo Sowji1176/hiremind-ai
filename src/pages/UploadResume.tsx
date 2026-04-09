@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { Upload, Loader2, CheckCircle, FileText } from "lucide-react";
 
-const ACCEPTED = ".pdf,.doc,.docx";
+const ACCEPTED = ".pdf,.doc,.docx,.jpg,.jpeg,.png";
 
 interface ScoreBreakdown {
   keyword_match: number;
@@ -47,13 +47,15 @@ const UploadResume = () => {
     "application/pdf",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/jpeg",
+    "image/png",
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (!validTypes.includes(f.type)) {
-      toast({ title: "Invalid file type", description: "Please upload a PDF or DOCX file.", variant: "destructive" });
+      toast({ title: "Invalid file type", description: "Please upload a PDF, DOC, DOCX, JPG, or PNG file.", variant: "destructive" });
       return;
     }
     setFile(f);
@@ -94,7 +96,7 @@ const UploadResume = () => {
       <h1 className="text-3xl font-bold text-foreground">Upload Resume</h1>
 
       <Card>
-        <CardHeader><CardTitle>Upload a Resume</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Upload Resume (PDF, DOC, DOCX, JPG, PNG)</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div
             className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-accent transition-colors"
@@ -104,7 +106,7 @@ const UploadResume = () => {
             <p className="text-sm text-muted-foreground mb-1">
               {file ? file.name : "Click to upload or drag and drop"}
             </p>
-            <p className="text-xs text-muted-foreground">PDF, DOC, DOCX</p>
+            <p className="text-xs text-muted-foreground">PDF, DOC, DOCX, JPG, PNG</p>
             <input ref={inputRef} type="file" accept={ACCEPTED} className="hidden" onChange={handleFileChange} />
           </div>
 

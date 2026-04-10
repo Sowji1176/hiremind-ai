@@ -5,6 +5,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Simple in-memory rate limiter: max 3 attempts per email per hour, 10 per IP per hour
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(key: string, max: number): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + 3600_000 });
+    return false;
+  }
+  entry.count++;
+  return entry.count > max;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -33,6 +47,18 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Password must be between 6 and 128 characters" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Rate limit by email (3/hour) and by IP (10/hour)
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const emailKey = `email:${email.toLowerCase()}`;
+    const ipKey = `ip:${clientIp}`;
+
+    if (isRateLimited(emailKey, 3) || isRateLimited(ipKey, 10)) {
+      return new Response(
+        JSON.stringify({ error: "Too many attempts. Please try again later." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -65,7 +91,6 @@ Deno.serve(async (req) => {
     });
 
     if (updateError) {
-      // Don't expose internal error details to client
       console.error("Password update error:", updateError.message);
       return new Response(
         JSON.stringify({ error: "Failed to update password. Please try a stronger password." }),

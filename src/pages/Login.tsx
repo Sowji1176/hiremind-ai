@@ -55,6 +55,9 @@ const Login = () => {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Sign In
               </Button>
+              <Link to="/forgot-password" className="text-sm text-accent hover:underline">
+                Forgot Password?
+              </Link>
               <p className="text-sm text-muted-foreground">
                 Don't have an account? <Link to="/register" className="text-accent hover:underline">Register</Link>
               </p>

@@ -37,10 +37,12 @@ const ForgotPassword = () => {
     });
     setLoading(false);
 
-    if (error || data?.error) {
-      toast({ title: "Error", description: data?.error || error?.message || "Something went wrong", variant: "destructive" });
+    if (error) {
+      toast({ title: "Error", description: error?.message || "Something went wrong", variant: "destructive" });
+    } else if (data?.error) {
+      toast({ title: "Error", description: data.error, variant: "destructive" });
     } else {
-      toast({ title: "Success", description: "Password updated successfully" });
+      toast({ title: "Success", description: data?.message || "Password updated successfully" });
       navigate("/login");
     }
   };

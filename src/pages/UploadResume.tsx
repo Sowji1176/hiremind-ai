@@ -68,8 +68,10 @@ const UploadResume = () => {
     setResult(null);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
       const ext = file.name.split(".").pop();
-      const path = `${crypto.randomUUID()}.${ext}`;
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("resumes").upload(path, file);
       if (uploadError) throw uploadError;
 

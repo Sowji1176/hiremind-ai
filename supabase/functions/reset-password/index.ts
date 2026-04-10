@@ -20,14 +20,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (password.length < 6) {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email) || email.length > 255) {
       return new Response(
-        JSON.stringify({ error: "Password must be at least 6 characters" }),
+        JSON.stringify({ error: "Invalid email format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Use service role to bypass auth
+    if (password.length < 6 || password.length > 128) {
+      return new Response(
+        JSON.stringify({ error: "Password must be between 6 and 128 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -43,27 +51,30 @@ Deno.serve(async (req) => {
     }
 
     const user = users.users.find((u) => u.email === email);
+
+    // Return generic message to prevent user enumeration
     if (!user) {
       return new Response(
-        JSON.stringify({ error: "User not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ message: "If that email exists, the password has been updated." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Update password using admin API (handles hashing automatically)
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
       password,
     });
 
     if (updateError) {
+      // Don't expose internal error details to client
+      console.error("Password update error:", updateError.message);
       return new Response(
-        JSON.stringify({ error: updateError.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Failed to update password. Please try a stronger password." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({ message: "Password updated successfully" }),
+      JSON.stringify({ message: "If that email exists, the password has been updated." }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
